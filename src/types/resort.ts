@@ -17,7 +17,9 @@ export interface Resort {
   id: string;
   created_at?: string;
   title: string;
+  name?: string; // Fallback alias for title
   slug: string;
+  category_slug?: string; // Fallback alias for slug
   category: string;
   price_per_night: string; // e.g. "₹1,300 / person"
   package_badge?: string; // e.g. "FROM 1 Night Package ₹1,300/-"
@@ -35,6 +37,22 @@ export interface Resort {
   gallery_images?: string[]; // SS5 Photo gallery
   is_featured: boolean;
   is_active: boolean;
+}
+
+/**
+ * Safely resolves a category slug from any object variant (slug, category_slug, id, title, name)
+ * Prevents "undefined" URL routing parameter issues.
+ */
+export function getCategorySlug(category?: Partial<Resort> | null): string {
+  if (!category) return "resort";
+  const slug =
+    category.slug ||
+    category.category_slug ||
+    category.id ||
+    category.title?.toLowerCase().replace(/\s+/g, "-") ||
+    category.name?.toLowerCase().replace(/\s+/g, "-");
+
+  return String(slug || "resort").trim();
 }
 
 export type ResortFormData = Omit<Resort, "id" | "created_at"> & {

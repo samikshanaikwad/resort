@@ -118,47 +118,57 @@ export const ResortsShowcase: React.FC<ResortsShowcaseProps> = ({
                   className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory scroll-smooth"
                   style={{ scrollbarWidth: "none" }}
                 >
-                  {resorts.map((resort, idx) => (
-                    <div
-                      key={resort.id || idx}
-                      id={`resort-card-${resort.id}`}
-                      onClick={() => handleCategoryClick(resort.slug)}
-                      className="min-w-[260px] sm:min-w-[320px] md:min-w-[350px] h-[400px] sm:h-[480px] rounded-2xl sm:rounded-3xl overflow-hidden relative group shadow-xl snap-start shrink-0 cursor-pointer select-none"
-                    >
-                      {/* Full-Height Image Background */}
-                      <img
-                        src={resort.image_url}
-                        alt={`${resort.title} - Dandeli Riverfront Resort & Jungle Stay`}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 brightness-95"
-                        referrerPolicy="no-referrer"
-                      />
+                  {resorts.map((resort, idx) => {
+                    const categorySlug =
+                      resort.slug ||
+                      resort.category_slug ||
+                      resort.id ||
+                      resort.title?.toLowerCase().replace(/\s+/g, "-") ||
+                      resort.name?.toLowerCase().replace(/\s+/g, "-") ||
+                      "resort";
 
-                      {/* Smooth Dark Gradient Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-300" />
+                    return (
+                      <div
+                        key={resort.id || idx}
+                        id={`resort-card-${resort.id || categorySlug}`}
+                        onClick={() => handleCategoryClick(categorySlug)}
+                        className="min-w-[260px] sm:min-w-[320px] md:min-w-[350px] h-[400px] sm:h-[480px] rounded-2xl sm:rounded-3xl overflow-hidden relative group shadow-xl snap-start shrink-0 cursor-pointer select-none"
+                      >
+                        {/* Full-Height Image Background */}
+                        <img
+                          src={resort.image_url}
+                          alt={`${resort.title || resort.name || "Resort"} - Dandeli Riverfront Resort & Jungle Stay`}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 brightness-95"
+                          referrerPolicy="no-referrer"
+                        />
 
-                      {/* Lower Content Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7 flex flex-col items-center text-center space-y-4">
-                        {/* Resort / Category Title */}
-                        <h3 className="text-lg sm:text-2xl font-bold text-white font-['Montserrat',sans-serif] tracking-tight leading-snug drop-shadow-md">
-                          {resort.title}
-                        </h3>
+                        {/* Smooth Dark Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-300" />
 
-                        {/* VIEW CTA: Clean semi-transparent pill */}
-                        <button
-                          id={`view-btn-${resort.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCategoryClick(resort.slug);
-                          }}
-                          className="border border-white/60 bg-black/20 text-white hover:bg-white hover:text-[#1F2925] text-xs font-bold uppercase tracking-widest px-7 py-3 rounded-full backdrop-blur-sm transition-all duration-200 shadow-md hover:scale-105 active:scale-95 cursor-pointer min-h-[44px] flex items-center justify-center"
-                        >
-                          VIEW
-                        </button>
+                        {/* Lower Content Overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7 flex flex-col items-center text-center space-y-4">
+                          {/* Resort / Category Title */}
+                          <h3 className="text-lg sm:text-2xl font-bold text-white font-['Montserrat',sans-serif] tracking-tight leading-snug drop-shadow-md">
+                            {resort.title || resort.name || "Resort"}
+                          </h3>
+
+                          {/* VIEW CTA: Clean semi-transparent pill */}
+                          <button
+                            id={`view-btn-${resort.id || categorySlug}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCategoryClick(categorySlug);
+                            }}
+                            className="border border-white/60 bg-black/20 text-white hover:bg-white hover:text-[#1F2925] text-xs font-bold uppercase tracking-widest px-7 py-3 rounded-full backdrop-blur-sm transition-all duration-200 shadow-md hover:scale-105 active:scale-95 cursor-pointer min-h-[44px] flex items-center justify-center"
+                          >
+                            VIEW
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

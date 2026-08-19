@@ -325,19 +325,29 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* Minimal Category-Only Dropdown Menu synced dynamically with Admin state */}
                 {staysDropdownOpen && (
                   <div className="absolute top-full left-0 w-72 sm:w-80 bg-[#1F1511] border border-white/10 rounded-2xl shadow-2xl p-2 mt-1 space-y-1 animate-fadeIn backdrop-blur-xl z-50">
-                    {resorts.map((resortItem) => (
-                      <a 
-                        key={resortItem.id} 
-                        href={`#category/${resortItem.slug}`}
-                        onClick={(e) => handleCategoryClick(e, resortItem.slug)}
-                        className="flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-white/5 text-white/90 hover:text-white transition-all group cursor-pointer min-h-[44px]"
-                      >
-                        <span className="font-semibold text-xs sm:text-sm text-white/90 group-hover:text-[#FF5722] transition-colors leading-snug">
-                          {resortItem.title}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-[#FF5722] opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
-                      </a>
-                    ))}
+                    {resorts.map((resortItem) => {
+                      const categorySlug =
+                        resortItem.slug ||
+                        resortItem.category_slug ||
+                        resortItem.id ||
+                        resortItem.title?.toLowerCase().replace(/\s+/g, "-") ||
+                        resortItem.name?.toLowerCase().replace(/\s+/g, "-") ||
+                        "resort";
+
+                      return (
+                        <a 
+                          key={resortItem.id || categorySlug} 
+                          href={`#category/${categorySlug}`}
+                          onClick={(e) => handleCategoryClick(e, categorySlug)}
+                          className="flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-white/5 text-white/90 hover:text-white transition-all group cursor-pointer min-h-[44px]"
+                        >
+                          <span className="font-semibold text-xs sm:text-sm text-white/90 group-hover:text-[#FF5722] transition-colors leading-snug">
+                            {resortItem.title || resortItem.name || "Resort"}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-[#FF5722] opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -482,17 +492,29 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                   </div>
                   <div className="space-y-1">
-                    {resorts.map((resortItem) => (
-                      <a
-                        key={resortItem.id}
-                        href={`#category/${resortItem.slug}`}
-                        onClick={(e) => handleCategoryClick(e, resortItem.slug)}
-                        className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-white/10 text-xs sm:text-sm text-white/90 hover:text-[#FF5722] transition-colors group min-h-[44px]"
-                      >
-                        <span className="font-medium leading-snug">{resortItem.title}</span>
-                        <ChevronRight className="w-4 h-4 text-[#FF5722] group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
-                      </a>
-                    ))}
+                    {resorts.map((resortItem) => {
+                      const categorySlug =
+                        resortItem.slug ||
+                        resortItem.category_slug ||
+                        resortItem.id ||
+                        resortItem.title?.toLowerCase().replace(/\s+/g, "-") ||
+                        resortItem.name?.toLowerCase().replace(/\s+/g, "-") ||
+                        "resort";
+
+                      return (
+                        <a
+                          key={resortItem.id || categorySlug}
+                          href={`#category/${categorySlug}`}
+                          onClick={(e) => handleCategoryClick(e, categorySlug)}
+                          className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-white/10 text-xs sm:text-sm text-white/90 hover:text-[#FF5722] transition-colors group min-h-[44px]"
+                        >
+                          <span className="font-medium leading-snug">
+                            {resortItem.title || resortItem.name || "Resort"}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-[#FF5722] group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
 

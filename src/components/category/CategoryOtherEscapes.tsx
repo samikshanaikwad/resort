@@ -35,43 +35,53 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
 
       {/* Clean Minimalist Cards Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pb-16">
-        {otherResorts.slice(0, 3).map((card) => (
-          <div
-            key={card.id}
-            onClick={() => onNavigateToSlug(card.slug)}
-            className="relative rounded-2xl overflow-hidden h-80 sm:h-96 group shadow-md cursor-pointer"
-          >
-            {/* Background Image */}
-            <img
-              src={card.image_url}
-              alt={`${card.title} - Dandeli Riverfront & Safari Stay`}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              referrerPolicy="no-referrer"
-            />
+        {otherResorts.slice(0, 3).map((card) => {
+          const cardSlug =
+            card.slug ||
+            card.category_slug ||
+            card.id ||
+            card.title?.toLowerCase().replace(/\s+/g, "-") ||
+            card.name?.toLowerCase().replace(/\s+/g, "-") ||
+            "resort";
 
-            {/* Gradient Overlay for Text Readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+          return (
+            <div
+              key={card.id || cardSlug}
+              onClick={() => onNavigateToSlug(cardSlug)}
+              className="relative rounded-2xl overflow-hidden h-80 sm:h-96 group shadow-md cursor-pointer"
+            >
+              {/* Background Image */}
+              <img
+                src={card.image_url}
+                alt={`${card.title || card.name || "Resort"} - Dandeli Riverfront & Safari Stay`}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                referrerPolicy="no-referrer"
+              />
 
-            {/* Card Bottom Content (Name + View Button Only) */}
-            <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 flex justify-between items-center text-white gap-2">
-              <h3 className="text-lg sm:text-xl font-bold leading-tight line-clamp-2">
-                {card.title}
-              </h3>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNavigateToSlug(card.slug);
-                }}
-                className="bg-white/20 hover:bg-[#FF5722] backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors duration-300 flex items-center gap-2 border border-white/30 hover:border-[#FF5722] cursor-pointer min-h-[44px] shrink-0"
-              >
-                <span>VIEW</span>
-                <span>→</span>
-              </button>
+              {/* Gradient Overlay for Text Readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+              {/* Card Bottom Content (Name + View Button Only) */}
+              <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 flex justify-between items-center text-white gap-2">
+                <h3 className="text-lg sm:text-xl font-bold leading-tight line-clamp-2">
+                  {card.title || card.name || "Resort"}
+                </h3>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToSlug(cardSlug);
+                  }}
+                  className="bg-white/20 hover:bg-[#FF5722] backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-colors duration-300 flex items-center gap-2 border border-white/30 hover:border-[#FF5722] cursor-pointer min-h-[44px] shrink-0"
+                >
+                  <span>VIEW</span>
+                  <span>→</span>
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

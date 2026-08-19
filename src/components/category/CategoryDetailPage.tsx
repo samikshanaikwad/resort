@@ -15,16 +15,63 @@ import { EnquiryModal } from "../EnquiryModal";
 import { SEOHead } from "../SEOHead";
 
 interface CategoryDetailPageProps {
-  slug: string;
+  slug?: string;
+  categorySlug?: string;
   onNavigateHome: () => void;
   onNavigateToCategory: (slug: string) => void;
 }
 
+/**
+ * Custom hook to safely extract route parameters from pathname or hash
+ * Compatible with React Router parameter naming conventions (:categorySlug)
+ */
+export function useCategoryParams<T extends Record<string, string | undefined>>(): T {
+  const hash = typeof window !== "undefined" ? window.location.hash || "" : "";
+  const path = typeof window !== "undefined" ? window.location.pathname || "" : "";
+  const search = typeof window !== "undefined" ? window.location.search || "" : "";
+
+  let extractedSlug = "";
+
+  // 1. Check pathname: /category/:categorySlug or /stay/:categorySlug
+  const pathMatch = path.match(/^\/(?:category|stay|resort)\/([^\/?#]+)/i);
+  if (pathMatch && pathMatch[1]) {
+    extractedSlug = decodeURIComponent(pathMatch[1]).trim();
+  }
+
+  // 2. Check hash: #category/:categorySlug or #/category/:categorySlug
+  if (!extractedSlug && hash) {
+    const cleanHash = hash.replace(/^#\/?/, "");
+    const hashMatch = cleanHash.match(/^(?:category|stay|resort)\/([^\/?#]+)/i);
+    if (hashMatch && hashMatch[1]) {
+      extractedSlug = decodeURIComponent(hashMatch[1]).trim();
+    }
+  }
+
+  // 3. Check query string: ?category=:categorySlug or ?categorySlug=:categorySlug
+  if (!extractedSlug && search) {
+    const params = new URLSearchParams(search);
+    const qParam = params.get("categorySlug") || params.get("category") || params.get("slug") || params.get("stay");
+    if (qParam) {
+      extractedSlug = decodeURIComponent(qParam).trim();
+    }
+  }
+
+  return {
+    categorySlug: extractedSlug || undefined,
+    slug: extractedSlug || undefined,
+  } as unknown as T;
+}
+
 export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
-  slug,
+  slug: propSlug,
+  categorySlug: propCategorySlug,
   onNavigateHome,
   onNavigateToCategory,
 }) => {
+  const routeParams = useCategoryParams<{ categorySlug?: string; slug?: string }>();
+  // Safely resolve the active slug from props or URL route parameters
+  const effectiveSlug = (propCategorySlug || propSlug || routeParams.categorySlug || routeParams.slug || "").trim();
+
   const [resort, setResort] = useState<Resort | null>(null);
   const [allResorts, setAllResorts] = useState<Resort[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,33 +85,39 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
     else setLoading(true);
 
     try {
-      const [foundResort, list] = await Promise.all([
-        fetchResortBySlug(slug),
-        fetchResorts(),
-      ]);
-
-      if (foundResort) {
-        setResort(foundResort);
-      } else {
-        // Fallback search across list if direct fetch returned null
-        const normalized = decodeURIComponent(slug).toLowerCase().trim();
-        const fallbackMatch = list.find((r) => {
-          const rSlug = (r.slug || "").toLowerCase().trim();
-          const rId = (r.id || "").toLowerCase().trim();
-          const rTitle = (r.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-          return rSlug === normalized || rId === normalized || rTitle === normalized;
-        });
-        setResort(fallbackMatch || null);
-      }
-
+      // 1. Fetch all resorts first as reliable foundation
+      const list = await fetchResorts();
       setAllResorts(list || []);
+
+      if (effectiveSlug) {
+        // Fetch specific resort by category slug/id
+        const foundResort = await fetchResortBySlug(effectiveSlug);
+        if (foundResort) {
+          setResort(foundResort);
+        } else {
+          // Fallback search across list if direct fetch returned null
+          const normalized = decodeURIComponent(effectiveSlug).toLowerCase().trim();
+          const fallbackMatch = list.find((r) => {
+            const rSlug = (r.slug || "").toLowerCase().trim();
+            const rId = (r.id || "").toLowerCase().trim();
+            const rTitle = (r.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            return rSlug === normalized || rId === normalized || rTitle === normalized;
+          });
+          setResort(fallbackMatch || null);
+        }
+      } else if (list && list.length > 0) {
+        // Fall back to first available stay if slug is missing
+        setResort(list[0]);
+      } else {
+        setResort(null);
+      }
     } catch (err) {
       console.error("Error loading category detail page:", err);
     } finally {
       setLoading(false);
       setIsRetrying(false);
     }
-  }, [slug]);
+  }, [effectiveSlug]);
 
   useEffect(() => {
     loadData();
@@ -138,7 +191,7 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
             Resort Category Not Found
           </h1>
           <p className="text-gray-300 text-sm sm:text-base max-w-lg mb-8 leading-relaxed">
-            The stay or category <span className="text-[#FF5722] font-semibold font-mono">"{slug}"</span> could not be located. It might have been renamed or relocated.
+            The stay or category <span className="text-[#FF5722] font-semibold font-mono">"{effectiveSlug || "requested"}"</span> could not be located. It might have been renamed or relocated.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 mb-12">
@@ -288,3 +341,8 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
     </div>
   );
 };
+
+// Aliases for React Router & component naming compatibility
+export const CategoryPage = CategoryDetailPage;
+export default CategoryDetailPage;
+
