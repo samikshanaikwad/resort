@@ -446,10 +446,76 @@ export async function fetchResorts(): Promise<Resort[]> {
   return getLocalResorts();
 }
 
-export async function fetchResortBySlug(slug: string): Promise<Resort | null> {
+export async function fetchResortBySlug(slugOrId: string): Promise<Resort | null> {
+  if (!slugOrId) return null;
+
+  // 1. DYNAMIC ROUTE MATCHING & SLUG NORMALIZATION
+  const rawParam = String(slugOrId).trim();
+  const decodedParam = decodeURIComponent(rawParam).trim();
+  const normalizedParam = decodedParam.toLowerCase();
+  const slugifiedParam = normalizedParam
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  // 2. Direct Supabase Query using .or(`slug.eq.${param},id.eq.${param}`)
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      // Query by both dynamic ID and dynamic URL slug in Supabase
+      const { data, error } = await supabase
+        .from("resorts")
+        .select("*")
+        .or(`slug.eq.${decodedParam},id.eq.${decodedParam},slug.eq.${slugifiedParam}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        return data as Resort;
+      }
+    } catch (err) {
+      console.warn("Direct Supabase resort lookup failed, checking cached/full list:", err);
+    }
+  }
+
+  // 3. Fallback: Retrieve all resorts and perform robust normalized in-memory matching
   const resorts = await fetchResorts();
-  const found = resorts.find((r) => r.slug === slug || r.id === slug);
-  return found || null;
+  if (resorts && resorts.length > 0) {
+    const found = resorts.find((r) => {
+      if (!r) return false;
+      const rSlug = (r.slug || "").trim().toLowerCase();
+      const rId = (r.id || "").trim().toLowerCase();
+      const rTitle = (r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      
+      return (
+        rSlug === normalizedParam ||
+        rId === normalizedParam ||
+        rSlug === slugifiedParam ||
+        rId === slugifiedParam ||
+        rTitle === normalizedParam ||
+        rTitle === slugifiedParam ||
+        rSlug.replace(/-/g, "") === normalizedParam.replace(/-/g, "")
+      );
+    });
+
+    if (found) return found;
+  }
+
+  // 4. Final safety fallback to INITIAL_RESORTS_SEED
+  const seedFound = INITIAL_RESORTS_SEED.find((r) => {
+    const rSlug = (r.slug || "").trim().toLowerCase();
+    const rId = (r.id || "").trim().toLowerCase();
+    const rTitle = (r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return (
+      rSlug === normalizedParam ||
+      rId === normalizedParam ||
+      rSlug === slugifiedParam ||
+      rId === slugifiedParam ||
+      rTitle === normalizedParam ||
+      rTitle === slugifiedParam
+    );
+  });
+
+  return seedFound || null;
 }
 
 export async function createResort(formData: ResortFormData): Promise<Resort> {

@@ -22,29 +22,45 @@ import { CategoryDetailPage } from "./components/category/CategoryDetailPage";
 import { SEOHead } from "./components/SEOHead";
 
 export default function App() {
-  // Parse Initial Route from Hash or Path
-  const getInitialState = () => {
+  // Parse Initial Route from Hash, Pathname, or Query String with full slug normalization
+  const parseCurrentLocation = () => {
     const hash = window.location.hash || "";
     const path = window.location.pathname || "";
+    const search = window.location.search || "";
 
+    // 1. Admin Route Detection
     if (hash === "#admin" || path === "/admin") {
       return { route: "admin" as const, categorySlug: null };
     }
 
-    if (hash.startsWith("#category/")) {
-      const slug = hash.replace("#category/", "").trim();
+    // 2. Path-based deep link matching (/category/:slug, /stay/:slug)
+    const pathCategoryMatch = path.match(/^\/(?:category|stay|resort)\/([^\/?#]+)/i);
+    if (pathCategoryMatch && pathCategoryMatch[1]) {
+      const slug = decodeURIComponent(pathCategoryMatch[1]).trim();
       return { route: "category" as const, categorySlug: slug };
     }
 
-    if (hash.startsWith("#stay/")) {
-      const slug = hash.replace("#stay/", "").trim();
+    // 3. Hash-based deep link matching (#category/:slug, #/category/:slug, #stay/:slug)
+    const cleanHash = hash.replace(/^#\/?/, "");
+    const hashCategoryMatch = cleanHash.match(/^(?:category|stay|resort)\/([^\/?#]+)/i);
+    if (hashCategoryMatch && hashCategoryMatch[1]) {
+      const slug = decodeURIComponent(hashCategoryMatch[1]).trim();
       return { route: "category" as const, categorySlug: slug };
+    }
+
+    // 4. Query string fallback (?category=:slug, ?stay=:slug)
+    if (search) {
+      const params = new URLSearchParams(search);
+      const querySlug = params.get("category") || params.get("stay") || params.get("resort");
+      if (querySlug) {
+        return { route: "category" as const, categorySlug: decodeURIComponent(querySlug).trim() };
+      }
     }
 
     return { route: "home" as const, categorySlug: null };
   };
 
-  const initial = getInitialState();
+  const initial = parseCurrentLocation();
   const [currentRoute, setCurrentRoute] = useState<"home" | "category" | "admin">(initial.route);
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(initial.categorySlug);
 
@@ -55,33 +71,22 @@ export default function App() {
   const [enquirySubject, setEnquirySubject] = useState<string>("");
 
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash || "";
+    const handleRouteChange = () => {
+      const parsed = parseCurrentLocation();
+      setCurrentRoute(parsed.route);
+      setActiveCategorySlug(parsed.categorySlug);
 
-      if (hash === "#admin") {
-        setCurrentRoute("admin");
-        setActiveCategorySlug(null);
-        if (!isAdminAuthenticated) {
-          setIsLoginModalOpen(true);
-        }
-      } else if (hash.startsWith("#category/")) {
-        const slug = hash.replace("#category/", "").trim();
-        setCurrentRoute("category");
-        setActiveCategorySlug(slug);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } else if (hash.startsWith("#stay/")) {
-        const slug = hash.replace("#stay/", "").trim();
-        setCurrentRoute("category");
-        setActiveCategorySlug(slug);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } else {
-        setCurrentRoute("home");
-        setActiveCategorySlug(null);
+      if (parsed.route === "admin" && !isAdminAuthenticated) {
+        setIsLoginModalOpen(true);
       }
     };
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("popstate", handleRouteChange);
+    return () => {
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("popstate", handleRouteChange);
+    };
   }, [isAdminAuthenticated]);
 
   const navigateToCategory = (slug: string) => {
