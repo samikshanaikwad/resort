@@ -572,41 +572,52 @@ export async function fetchResorts(): Promise<Resort[]> {
 }
 
 export async function fetchResortBySlug(slugOrId: string | number): Promise<Resort | null> {
-  if (slugOrId === undefined || slugOrId === null || slugOrId === "") {
+  const targetSlug = String(slugOrId || "").trim();
+  if (!targetSlug) {
     const list = await fetchResorts();
     return list[0] || null;
   }
 
-  // 1. DYNAMIC ROUTE MATCHING & SLUG / NUMERICAL ID NORMALIZATION
-  const rawParam = String(slugOrId).trim();
-  const decodedParam = decodeURIComponent(rawParam).trim();
-  const normalizedParam = decodedParam.toLowerCase();
-  const slugifiedParam = normalizedParam
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  // 1. DYNAMIC ROUTE MATCHING & SLUG / NUMERICAL ID SANITIZATION
+  const decodedSlug = decodeURIComponent(targetSlug).trim();
+  const normalizedSlug = decodedSlug.toLowerCase();
+  const isNumeric = !isNaN(Number(decodedSlug)) && decodedSlug !== "";
+  const numericId = Number(decodedSlug);
 
-  const numericId = Number(decodedParam);
-  const isNumeric = !isNaN(numericId) && numericId > 0;
-
-  // 2. Direct Supabase Query: Prioritize dynamic database records
+  // 2. SAFE SUPABASE QUERY PATTERN (Clean syntax, no malformed .or() string)
   const supabase = getSupabase();
   if (supabase) {
     try {
-      let orConditions = `slug.eq.${decodedParam},id.eq.${decodedParam},slug.eq.${slugifiedParam}`;
+      let query = supabase.from("resorts").select("*");
+
       if (isNumeric) {
-        orConditions += `,id.eq.${numericId},id.eq.resort-${numericId},slug.eq.resort-${numericId}`;
+        // Numerical ID search (or fallback matching)
+        query = query.or(`id.eq.${numericId},slug.eq.${decodedSlug}`);
+      } else {
+        // Slug string search
+        query = query.eq("slug", decodedSlug);
       }
 
-      const { data, error } = await supabase
-        .from("resorts")
-        .select("*")
-        .or(orConditions)
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await query.limit(1).maybeSingle();
 
       if (!error && data) {
         console.log("Fetched Resort:", data);
         return normalizeResortRecord(data);
+      }
+
+      // If exact slug match returned nothing, try matching by id if string
+      if (!isNumeric) {
+        const { data: byIdData } = await supabase
+          .from("resorts")
+          .select("*")
+          .eq("id", decodedSlug)
+          .limit(1)
+          .maybeSingle();
+
+        if (byIdData) {
+          console.log("Fetched Resort by ID:", byIdData);
+          return normalizeResortRecord(byIdData);
+        }
       }
     } catch (err) {
       console.warn("Direct Supabase resort lookup failed, checking cached/full list:", err);
@@ -624,13 +635,10 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
       const rTitle = String(r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
       
       const isIdMatch =
-        rSlug === normalizedParam ||
-        rId === normalizedParam ||
-        rSlug === slugifiedParam ||
-        rId === slugifiedParam ||
-        rTitle === normalizedParam ||
-        rTitle === slugifiedParam ||
-        rSlug.replace(/-/g, "") === normalizedParam.replace(/-/g, "");
+        rSlug === normalizedSlug ||
+        rId === normalizedSlug ||
+        rTitle === normalizedSlug ||
+        rSlug.replace(/-/g, "") === normalizedSlug.replace(/-/g, "");
 
       if (isIdMatch) return true;
 
@@ -660,12 +668,9 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
     const rTitle = String(r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
     
     if (
-      rSlug === normalizedParam ||
-      rId === normalizedParam ||
-      rSlug === slugifiedParam ||
-      rId === slugifiedParam ||
-      rTitle === normalizedParam ||
-      rTitle === slugifiedParam
+      rSlug === normalizedSlug ||
+      rId === normalizedSlug ||
+      rTitle === normalizedSlug
     ) {
       return true;
     }
