@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MessageCircle } from "lucide-react";
 import { PLACEHOLDERS } from "../config/placeholders";
-import { Resort } from "../types/resort";
+import { Resort, getCategorySlug } from "../types/resort";
 import { fetchResorts, subscribeToResortsRealtime } from "../lib/supabaseClient";
 
 export interface StayItem {
@@ -119,13 +119,8 @@ export const ResortsShowcase: React.FC<ResortsShowcaseProps> = ({
                   style={{ scrollbarWidth: "none" }}
                 >
                   {resorts.map((resort, idx) => {
-                    const categorySlug =
-                      resort.slug ||
-                      resort.category_slug ||
-                      resort.id ||
-                      resort.title?.toLowerCase().replace(/\s+/g, "-") ||
-                      resort.name?.toLowerCase().replace(/\s+/g, "-") ||
-                      "resort";
+                    const categorySlug = getCategorySlug(resort);
+                    const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Resort").trim());
 
                     return (
                       <div
@@ -137,7 +132,7 @@ export const ResortsShowcase: React.FC<ResortsShowcaseProps> = ({
                         {/* Full-Height Image Background */}
                         <img
                           src={resort.image_url}
-                          alt={`${resort.title || resort.name || "Resort"} - Dandeli Riverfront Resort & Jungle Stay`}
+                          alt={`${title} - Dandeli Riverfront Resort & Jungle Stay`}
                           loading="lazy"
                           decoding="async"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 brightness-95"
@@ -151,7 +146,7 @@ export const ResortsShowcase: React.FC<ResortsShowcaseProps> = ({
                         <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7 flex flex-col items-center text-center space-y-4">
                           {/* Resort / Category Title */}
                           <h3 className="text-lg sm:text-2xl font-bold text-white font-['Montserrat',sans-serif] tracking-tight leading-snug drop-shadow-md">
-                            {resort.title || resort.name || "Resort"}
+                            {title}
                           </h3>
 
                           {/* VIEW CTA: Clean semi-transparent pill */}

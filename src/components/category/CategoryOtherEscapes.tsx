@@ -1,5 +1,5 @@
 import React from "react";
-import { Resort } from "../../types/resort";
+import { Resort, getCategorySlug } from "../../types/resort";
 
 interface CategoryOtherEscapesProps {
   allResorts: Resort[];
@@ -12,8 +12,9 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
   currentSlug,
   onNavigateToSlug,
 }) => {
-  const otherResorts = allResorts.filter(
-    (r) => r.is_active && r.slug !== currentSlug
+  const safeCurrentSlug = String(currentSlug || "").toLowerCase().trim();
+  const otherResorts = (allResorts || []).filter(
+    (r) => r.is_active && String(r.slug || "").toLowerCase().trim() !== safeCurrentSlug
   );
 
   if (otherResorts.length === 0) return null;
@@ -36,13 +37,8 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
       {/* Clean Minimalist Cards Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pb-16">
         {otherResorts.slice(0, 3).map((card) => {
-          const cardSlug =
-            card.slug ||
-            card.category_slug ||
-            card.id ||
-            card.title?.toLowerCase().replace(/\s+/g, "-") ||
-            card.name?.toLowerCase().replace(/\s+/g, "-") ||
-            "resort";
+          const cardSlug = getCategorySlug(card);
+          const cardTitle = typeof card?.title === "string" ? card.title.trim() : (typeof card?.name === "string" ? card.name.trim() : String(card?.title || card?.name || "Resort").trim());
 
           return (
             <div
@@ -53,7 +49,7 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
               {/* Background Image */}
               <img
                 src={card.image_url}
-                alt={`${card.title || card.name || "Resort"} - Dandeli Riverfront & Safari Stay`}
+                alt={`${cardTitle} - Dandeli Riverfront & Safari Stay`}
                 loading="lazy"
                 decoding="async"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -66,7 +62,7 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
               {/* Card Bottom Content (Name + View Button Only) */}
               <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 flex justify-between items-center text-white gap-2">
                 <h3 className="text-lg sm:text-xl font-bold leading-tight line-clamp-2">
-                  {card.title || card.name || "Resort"}
+                  {cardTitle}
                 </h3>
                 <button 
                   onClick={(e) => {

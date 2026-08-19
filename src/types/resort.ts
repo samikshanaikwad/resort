@@ -49,8 +49,9 @@ export function getCategorySlug(category?: Partial<Resort> | null): string {
     category.slug ||
     category.category_slug ||
     category.id ||
-    category.title?.toLowerCase().replace(/\s+/g, "-") ||
-    category.name?.toLowerCase().replace(/\s+/g, "-");
+    (typeof category.title === "string" ? category.title.toLowerCase().replace(/\s+/g, "-") : "") ||
+    (typeof category.name === "string" ? category.name.toLowerCase().replace(/\s+/g, "-") : "") ||
+    "resort";
 
   return String(slug || "resort").trim();
 }

@@ -492,9 +492,9 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
     // A. Exact slug / ID / title match
     const found = resorts.find((r, index) => {
       if (!r) return false;
-      const rSlug = (r.slug || "").trim().toLowerCase();
-      const rId = (r.id || "").trim().toLowerCase();
-      const rTitle = (r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const rSlug = String(r.slug || "").trim().toLowerCase();
+      const rId = String(r.id || "").trim().toLowerCase();
+      const rTitle = String(r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
       
       const isIdMatch =
         rSlug === normalizedParam ||
@@ -528,9 +528,9 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
 
   // 4. Final safety fallback to INITIAL_RESORTS_SEED
   const seedFound = INITIAL_RESORTS_SEED.find((r, index) => {
-    const rSlug = (r.slug || "").trim().toLowerCase();
-    const rId = (r.id || "").trim().toLowerCase();
-    const rTitle = (r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const rSlug = String(r.slug || "").trim().toLowerCase();
+    const rId = String(r.id || "").trim().toLowerCase();
+    const rTitle = String(r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
     
     if (
       rSlug === normalizedParam ||

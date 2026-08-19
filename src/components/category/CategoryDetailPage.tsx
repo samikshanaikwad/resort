@@ -103,10 +103,10 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
   onNavigateToCategory,
 }) => {
   // Extract route parameters safely via useParams
-  const { id, categorySlug, slug } = useParams<{ id?: string; categorySlug?: string; slug?: string }>();
+  const params = useParams<{ id?: string; categorySlug?: string; slug?: string }>();
   
-  // Safely resolve the raw identifier (supports string slugs and integer IDs like '13')
-  const rawIdentifier = (propId || propCategorySlug || propSlug || id || categorySlug || slug || "").trim();
+  // Safely parse parameter inputs from props or useParams() with explicit String wrapper
+  const categoryIdOrSlug = String(propId || propCategorySlug || propSlug || params.id || params.categorySlug || params.slug || "").trim();
 
   const [resort, setResort] = useState<Resort | null>(null);
   const [allResorts, setAllResorts] = useState<Resort[]>([]);
@@ -124,13 +124,14 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
     try {
       // 1. Fetch all resorts first as reliable foundation
       const list = await fetchResorts();
-      const safeList = list && list.length > 0 ? list : [];
+      const safeList = Array.isArray(list) && list.length > 0 ? list : [];
       setAllResorts(safeList);
 
-      if (rawIdentifier) {
-        // Convert string IDs to numbers if numerical (e.g., Number(id) for '13')
-        const numericId = Number(rawIdentifier);
-        const queryParam = !isNaN(numericId) && numericId > 0 ? numericId : rawIdentifier;
+      if (categoryIdOrSlug) {
+        // Convert to number ONLY when comparing against integer database columns or numerical indexes
+        const numericId = Number(categoryIdOrSlug);
+        const isNumeric = !isNaN(numericId) && numericId > 0;
+        const queryParam = isNumeric ? numericId : categoryIdOrSlug;
 
         // Fetch specific resort by category slug or numeric ID
         const foundResort = await fetchResortBySlug(queryParam);
@@ -138,14 +139,14 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
           setResort(foundResort);
         } else if (safeList.length > 0) {
           // Fallback search across loaded list if direct fetch returned null
-          const normalized = decodeURIComponent(rawIdentifier).toLowerCase().trim();
+          const normalized = decodeURIComponent(categoryIdOrSlug).toLowerCase().trim();
           const fallbackMatch = safeList.find((r, index) => {
-            const rSlug = (r.slug || "").toLowerCase().trim();
-            const rId = (r.id || "").toLowerCase().trim();
-            const rTitle = (r.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            const rSlug = String(r.slug || "").toLowerCase().trim();
+            const rId = String(r.id || "").toLowerCase().trim();
+            const rTitle = String(r.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
             
             if (rSlug === normalized || rId === normalized || rTitle === normalized) return true;
-            if (!isNaN(numericId) && (index + 1 === numericId || Number(rId.replace(/[^0-9]/g, "")) === numericId)) return true;
+            if (isNumeric && (index + 1 === numericId || Number(rId.replace(/[^0-9]/g, "")) === numericId)) return true;
             return false;
           });
 
@@ -169,7 +170,7 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
       setLoading(false);
       setIsRetrying(false);
     }
-  }, [rawIdentifier, allResorts]);
+  }, [categoryIdOrSlug, allResorts]);
 
   useEffect(() => {
     fetchCategoryData();
@@ -248,7 +249,7 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
             Resort Category Not Found
           </h1>
           <p className="text-gray-300 text-sm sm:text-base max-w-lg mb-4 leading-relaxed">
-            The stay or category <span className="text-[#FF5722] font-semibold font-mono">"{rawIdentifier || "requested"}"</span> could not be located. It might have been renamed or relocated.
+            The stay or category <span className="text-[#FF5722] font-semibold font-mono">"{categoryIdOrSlug || "requested"}"</span> could not be located. It might have been renamed or relocated.
           </p>
 
           {redirectCountdown !== null && redirectCountdown > 0 && (

@@ -7,32 +7,33 @@ interface CategoryPackagesIncludedProps {
   onBookPackage: (pkg: PackageTier) => void;
 }
 
-function normalizePackageTier(item: any, index: number, defaultPrice: string): PackageTier {
+function normalizePackageTier(item: any, index: number, defaultPrice: unknown): PackageTier {
+  const safeDefaultPrice = String(defaultPrice || "₹1,300 / head").trim();
   if (!item) {
     return {
       id: `pkg-${index}`,
       name: `Stay Package ${index + 1}`,
-      price_per_person: defaultPrice || "₹1,300 / head",
+      price_per_person: safeDefaultPrice,
       capacity_badge: "2-4 Guests",
       description: "Includes accommodation, buffet meals, and activities.",
     };
   }
   if (typeof item === "string") {
-    const parts = item.split("|").map((p: string) => p.trim());
+    const parts = item.split("|").map((p: string) => String(p || "").trim());
     return {
       id: `pkg-${index}`,
       name: parts[0] || `Package ${index + 1}`,
-      price_per_person: parts[1] || defaultPrice || "₹1,300 / head",
+      price_per_person: parts[1] || safeDefaultPrice,
       capacity_badge: parts[2] || "2-4 Guests",
       description: parts[3] || "Includes standard accommodation, meals, and activities.",
     };
   }
   return {
-    id: item.id || `pkg-${index}`,
-    name: typeof item.name === "string" ? item.name : `Package ${index + 1}`,
-    price_per_person: typeof item.price_per_person === "string" ? item.price_per_person : (defaultPrice || "₹1,300 / head"),
-    capacity_badge: typeof item.capacity_badge === "string" ? item.capacity_badge : "Min 2 - Max 4 Guests",
-    description: typeof item.description === "string" ? item.description : "Includes accommodation and amenities.",
+    id: String(item.id || `pkg-${index}`).trim(),
+    name: typeof item.name === "string" ? item.name.trim() : String(item.name || `Package ${index + 1}`).trim(),
+    price_per_person: typeof item.price_per_person === "string" ? item.price_per_person.trim() : String(item.price_per_person || safeDefaultPrice).trim(),
+    capacity_badge: typeof item.capacity_badge === "string" ? item.capacity_badge.trim() : String(item.capacity_badge || "Min 2 - Max 4 Guests").trim(),
+    description: typeof item.description === "string" ? item.description.trim() : String(item.description || "Includes accommodation and amenities.").trim(),
   };
 }
 

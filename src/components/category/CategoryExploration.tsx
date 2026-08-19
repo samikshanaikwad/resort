@@ -19,9 +19,10 @@ interface CategoryExplorationProps {
 }
 
 // Icon helper function with compact sizing
-function renderAmenityIcon(iconName?: string) {
+function renderAmenityIcon(iconName?: unknown) {
   const iconClass = "w-5 h-5 text-[#FF5722]";
-  switch (iconName?.toLowerCase()) {
+  const safeName = String(iconName || "").toLowerCase().trim();
+  switch (safeName) {
     case "waves":
     case "water":
     case "river":
@@ -60,7 +61,8 @@ function renderAmenityIcon(iconName?: string) {
 }
 
 export const CategoryExploration: React.FC<CategoryExplorationProps> = ({ resort }) => {
-  const exploreImg = resort.explore_image_url || resort.image_url;
+  const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Resort Experience").trim());
+  const exploreImg = String(resort?.explore_image_url || resort?.image_url || "").trim();
 
   // Fallback highlight amenities if not present in custom object
   const highlightAmenities = resort.highlight_amenities && resort.highlight_amenities.length > 0
@@ -98,7 +100,7 @@ export const CategoryExploration: React.FC<CategoryExplorationProps> = ({ resort
         {/* Responsive Heading */}
         <div className="w-full mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-[#11221A] leading-tight break-words">
-            Explore Our {resort.title}
+            Explore Our {title}
           </h2>
         </div>
 
@@ -109,7 +111,7 @@ export const CategoryExploration: React.FC<CategoryExplorationProps> = ({ resort
           <div className="relative rounded-2xl overflow-hidden shadow-sm bg-gray-100 aspect-[4/3] sm:aspect-[16/11]">
             <img 
               src={exploreImg} 
-              alt={`Explore ${resort.title} - River Views and Jungle Landscape`}
+              alt={`Explore ${title} - River Views and Jungle Landscape`}
               loading="lazy"
               decoding="async"
               className="w-full h-full object-cover rounded-2xl"
@@ -136,13 +138,13 @@ export const CategoryExploration: React.FC<CategoryExplorationProps> = ({ resort
                       {renderAmenityIcon(item.icon)}
                     </div>
                     <h3 className="font-bold text-sm md:text-base text-gray-900 leading-tight">
-                      {item.title}
+                      {typeof item.title === "string" ? item.title.trim() : String(item.title || "")}
                     </h3>
                   </div>
                   
                   {/* Description Below */}
                   <p className="text-xs text-gray-600 leading-snug pl-[3px]">
-                    {item.description}
+                    {typeof item.description === "string" ? item.description.trim() : String(item.description || "")}
                   </p>
                 </div>
               ))}

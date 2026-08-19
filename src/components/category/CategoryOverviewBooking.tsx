@@ -12,10 +12,17 @@ export const CategoryOverviewBooking: React.FC<CategoryOverviewBookingProps> = (
   resort,
   onBookNow,
 }) => {
-  const checkIn = resort.check_in_time || "11:00 AM";
-  const checkOut = resort.check_out_time || "10:00 AM";
-  const rateText = resort.price_per_night ? resort.price_per_night.replace(/^FROM\s*/i, "") : "1800";
-  const phone = resort.contact_phone || PLACEHOLDERS.PLACEHOLDER_NAV_PHONE || "+91 8123715275";
+  const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Dandeli Stay").trim());
+  const description = typeof resort?.full_description === "string" && resort.full_description.trim()
+    ? resort.full_description.trim()
+    : (typeof resort?.short_description === "string" && resort.short_description.trim()
+      ? resort.short_description.trim()
+      : String(resort?.full_description || resort?.short_description || "Experience the best of Dandeli nature, water sports, and tranquil riverfront views.").trim());
+  const checkIn = typeof resort?.check_in_time === "string" && resort.check_in_time.trim() ? resort.check_in_time.trim() : "11:00 AM";
+  const checkOut = typeof resort?.check_out_time === "string" && resort.check_out_time.trim() ? resort.check_out_time.trim() : "10:00 AM";
+  const rawPrice = typeof resort?.price_per_night === "string" ? resort.price_per_night : String(resort?.price_per_night || "1800");
+  const rateText = String(rawPrice || "1800").replace(/^FROM\s*/i, "").trim() || "1800";
+  const phone = typeof resort?.contact_phone === "string" && resort.contact_phone.trim() ? resort.contact_phone.trim() : (PLACEHOLDERS.PLACEHOLDER_NAV_PHONE || "+91 8123715275");
 
   return (
     <section 
@@ -28,11 +35,11 @@ export const CategoryOverviewBooking: React.FC<CategoryOverviewBookingProps> = (
           {/* Left Column: Description & Check-in/out Details */}
           <div className="lg:col-span-2 space-y-6">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#1F2925]">
-              Welcome to {resort.title}
+              Welcome to {title}
             </h1>
 
             <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
-              {resort.full_description || resort.short_description}
+              {description}
             </p>
 
             {/* Badges for Check In / Check Out / Price */}
@@ -54,7 +61,7 @@ export const CategoryOverviewBooking: React.FC<CategoryOverviewBookingProps> = (
           {/* Right Column: Clean Integrated Contact & Booking Action */}
           <div className="flex flex-col justify-center space-y-4">
             <a
-              href={`tel:${phone.replace(/\s+/g, "")}`}
+              href={`tel:${String(phone || "").replace(/\s+/g, "")}`}
               className="flex items-center justify-center gap-3 bg-white hover:bg-gray-50 border border-black/10 p-4 rounded-xl text-lg font-bold transition-colors text-[#1F2925] shadow-sm"
             >
               <Phone className="w-5 h-5 text-[#FF5722]" />
