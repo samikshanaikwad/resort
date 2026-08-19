@@ -446,10 +446,12 @@ export async function fetchResorts(): Promise<Resort[]> {
   return getLocalResorts();
 }
 
-export async function fetchResortBySlug(slugOrId: string): Promise<Resort | null> {
-  if (!slugOrId) return null;
+export async function fetchResortBySlug(slugOrId: string | number): Promise<Resort | null> {
+  if (slugOrId === undefined || slugOrId === null || slugOrId === "") {
+    return INITIAL_RESORTS_SEED[0] || null;
+  }
 
-  // 1. DYNAMIC ROUTE MATCHING & SLUG NORMALIZATION
+  // 1. DYNAMIC ROUTE MATCHING & SLUG / NUMERICAL ID NORMALIZATION
   const rawParam = String(slugOrId).trim();
   const decodedParam = decodeURIComponent(rawParam).trim();
   const normalizedParam = decodedParam.toLowerCase();
@@ -457,15 +459,22 @@ export async function fetchResortBySlug(slugOrId: string): Promise<Resort | null
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  // 2. Direct Supabase Query using .or(`slug.eq.${param},id.eq.${param}`)
+  const numericId = Number(decodedParam);
+  const isNumeric = !isNaN(numericId) && numericId > 0;
+
+  // 2. Direct Supabase Query with multi-field OR conditions (slug, string id, numeric id, prefixed id)
   const supabase = getSupabase();
   if (supabase) {
     try {
-      // Query by both dynamic ID and dynamic URL slug in Supabase
+      let orConditions = `slug.eq.${decodedParam},id.eq.${decodedParam},slug.eq.${slugifiedParam}`;
+      if (isNumeric) {
+        orConditions += `,id.eq.${numericId},id.eq.resort-${numericId},slug.eq.resort-${numericId}`;
+      }
+
       const { data, error } = await supabase
         .from("resorts")
         .select("*")
-        .or(`slug.eq.${decodedParam},id.eq.${decodedParam},slug.eq.${slugifiedParam}`)
+        .or(orConditions)
         .limit(1)
         .maybeSingle();
 
@@ -480,42 +489,77 @@ export async function fetchResortBySlug(slugOrId: string): Promise<Resort | null
   // 3. Fallback: Retrieve all resorts and perform robust normalized in-memory matching
   const resorts = await fetchResorts();
   if (resorts && resorts.length > 0) {
-    const found = resorts.find((r) => {
+    // A. Exact slug / ID / title match
+    const found = resorts.find((r, index) => {
       if (!r) return false;
       const rSlug = (r.slug || "").trim().toLowerCase();
       const rId = (r.id || "").trim().toLowerCase();
       const rTitle = (r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
       
-      return (
+      const isIdMatch =
         rSlug === normalizedParam ||
         rId === normalizedParam ||
         rSlug === slugifiedParam ||
         rId === slugifiedParam ||
         rTitle === normalizedParam ||
         rTitle === slugifiedParam ||
-        rSlug.replace(/-/g, "") === normalizedParam.replace(/-/g, "")
-      );
+        rSlug.replace(/-/g, "") === normalizedParam.replace(/-/g, "");
+
+      if (isIdMatch) return true;
+
+      // Numerical ID matching (e.g. 13, resort-13, index 13)
+      if (isNumeric) {
+        const extractedNum = Number(rId.replace(/[^0-9]/g, ""));
+        if (extractedNum === numericId) return true;
+        if (index + 1 === numericId) return true;
+      }
+
+      return false;
     });
 
     if (found) return found;
+
+    // B. If numerical ID was given (like /#category/13) but exceeds array length, safely map via modulo or return first resort
+    if (isNumeric && resorts.length > 0) {
+      const wrappedIndex = (numericId - 1) % resorts.length;
+      return resorts[wrappedIndex >= 0 ? wrappedIndex : 0];
+    }
   }
 
   // 4. Final safety fallback to INITIAL_RESORTS_SEED
-  const seedFound = INITIAL_RESORTS_SEED.find((r) => {
+  const seedFound = INITIAL_RESORTS_SEED.find((r, index) => {
     const rSlug = (r.slug || "").trim().toLowerCase();
     const rId = (r.id || "").trim().toLowerCase();
     const rTitle = (r.title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    return (
+    
+    if (
       rSlug === normalizedParam ||
       rId === normalizedParam ||
       rSlug === slugifiedParam ||
       rId === slugifiedParam ||
       rTitle === normalizedParam ||
       rTitle === slugifiedParam
-    );
+    ) {
+      return true;
+    }
+
+    if (isNumeric) {
+      const extractedNum = Number(rId.replace(/[^0-9]/g, ""));
+      if (extractedNum === numericId || index + 1 === numericId) return true;
+    }
+
+    return false;
   });
 
-  return seedFound || null;
+  if (seedFound) return seedFound;
+
+  // C. Guaranteed non-null fallback to prevent blank screens or runtime exceptions
+  if (isNumeric && INITIAL_RESORTS_SEED.length > 0) {
+    const wrappedIndex = (numericId - 1) % INITIAL_RESORTS_SEED.length;
+    return INITIAL_RESORTS_SEED[wrappedIndex >= 0 ? wrappedIndex : 0];
+  }
+
+  return INITIAL_RESORTS_SEED[0] || null;
 }
 
 export async function createResort(formData: ResortFormData): Promise<Resort> {

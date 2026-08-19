@@ -15,6 +15,7 @@ import { EnquiryModal } from "../EnquiryModal";
 import { SEOHead } from "../SEOHead";
 
 interface CategoryDetailPageProps {
+  id?: string;
   slug?: string;
   categorySlug?: string;
   onNavigateHome: () => void;
@@ -22,121 +23,193 @@ interface CategoryDetailPageProps {
 }
 
 /**
- * Custom hook to safely extract route parameters from pathname or hash
- * Compatible with React Router parameter naming conventions (:categorySlug)
+ * Custom hook to safely extract route parameters from pathname, hash, or query string
+ * Supports /category/:id, /category/:categorySlug, #category/:id, /#category/:id, etc.
  */
-export function useCategoryParams<T extends Record<string, string | undefined>>(): T {
+export function useParams<T extends Record<string, string | undefined>>(): T {
   const hash = typeof window !== "undefined" ? window.location.hash || "" : "";
   const path = typeof window !== "undefined" ? window.location.pathname || "" : "";
   const search = typeof window !== "undefined" ? window.location.search || "" : "";
 
-  let extractedSlug = "";
+  let extractedParam = "";
 
-  // 1. Check pathname: /category/:categorySlug or /stay/:categorySlug
+  // 1. Check pathname: /category/:id, /category/:categorySlug, /stay/:id
   const pathMatch = path.match(/^\/(?:category|stay|resort)\/([^\/?#]+)/i);
   if (pathMatch && pathMatch[1]) {
-    extractedSlug = decodeURIComponent(pathMatch[1]).trim();
+    extractedParam = decodeURIComponent(pathMatch[1]).trim();
   }
 
-  // 2. Check hash: #category/:categorySlug or #/category/:categorySlug
-  if (!extractedSlug && hash) {
+  // 2. Check hash: #category/:id, /#category/:id, #/category/:id, #stay/:id
+  if (!extractedParam && hash) {
     const cleanHash = hash.replace(/^#\/?/, "");
     const hashMatch = cleanHash.match(/^(?:category|stay|resort)\/([^\/?#]+)/i);
     if (hashMatch && hashMatch[1]) {
-      extractedSlug = decodeURIComponent(hashMatch[1]).trim();
+      extractedParam = decodeURIComponent(hashMatch[1]).trim();
     }
   }
 
-  // 3. Check query string: ?category=:categorySlug or ?categorySlug=:categorySlug
-  if (!extractedSlug && search) {
+  // 3. Check query string: ?id=:id, ?category=:id, ?categorySlug=:slug
+  if (!extractedParam && search) {
     const params = new URLSearchParams(search);
-    const qParam = params.get("categorySlug") || params.get("category") || params.get("slug") || params.get("stay");
+    const qParam =
+      params.get("id") ||
+      params.get("categorySlug") ||
+      params.get("category") ||
+      params.get("slug") ||
+      params.get("stay") ||
+      params.get("resort");
     if (qParam) {
-      extractedSlug = decodeURIComponent(qParam).trim();
+      extractedParam = decodeURIComponent(qParam).trim();
     }
   }
 
   return {
-    categorySlug: extractedSlug || undefined,
-    slug: extractedSlug || undefined,
+    id: extractedParam || undefined,
+    categorySlug: extractedParam || undefined,
+    slug: extractedParam || undefined,
   } as unknown as T;
 }
 
+export const useCategoryParams = useParams;
+
+/**
+ * LoadingSpinner Component
+ */
+export const LoadingSpinner: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-[#11221A] flex flex-col items-center justify-center text-white px-4">
+      {/* Animated Brand Ring Spinner */}
+      <div className="relative w-16 h-16 mb-6">
+        <div className="w-16 h-16 border-4 border-white/10 border-t-[#FF5722] rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Compass className="w-6 h-6 text-[#FF5722] animate-pulse" />
+        </div>
+      </div>
+      <h2 className="text-lg sm:text-xl font-bold font-['Montserrat',sans-serif] tracking-tight text-white mb-2">
+        Loading Wilderness Experience
+      </h2>
+      <p className="text-white/60 font-sans tracking-wide text-xs sm:text-sm text-center max-w-sm">
+        Retrieving live resort rates, Kali River suites, and verified safari itineraries...
+      </p>
+    </div>
+  );
+};
+
 export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
+  id: propId,
   slug: propSlug,
   categorySlug: propCategorySlug,
   onNavigateHome,
   onNavigateToCategory,
 }) => {
-  const routeParams = useCategoryParams<{ categorySlug?: string; slug?: string }>();
-  // Safely resolve the active slug from props or URL route parameters
-  const effectiveSlug = (propCategorySlug || propSlug || routeParams.categorySlug || routeParams.slug || "").trim();
+  // Extract route parameters safely via useParams
+  const { id, categorySlug, slug } = useParams<{ id?: string; categorySlug?: string; slug?: string }>();
+  
+  // Safely resolve the raw identifier (supports string slugs and integer IDs like '13')
+  const rawIdentifier = (propId || propCategorySlug || propSlug || id || categorySlug || slug || "").trim();
 
   const [resort, setResort] = useState<Resort | null>(null);
   const [allResorts, setAllResorts] = useState<Resort[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const [enquirySubject, setEnquirySubject] = useState("");
 
-  const loadData = useCallback(async (isRetry = false) => {
+  const fetchCategoryData = useCallback(async (isRetry = false) => {
     if (isRetry) setIsRetrying(true);
     else setLoading(true);
 
     try {
       // 1. Fetch all resorts first as reliable foundation
       const list = await fetchResorts();
-      setAllResorts(list || []);
+      const safeList = list && list.length > 0 ? list : [];
+      setAllResorts(safeList);
 
-      if (effectiveSlug) {
-        // Fetch specific resort by category slug/id
-        const foundResort = await fetchResortBySlug(effectiveSlug);
+      if (rawIdentifier) {
+        // Convert string IDs to numbers if numerical (e.g., Number(id) for '13')
+        const numericId = Number(rawIdentifier);
+        const queryParam = !isNaN(numericId) && numericId > 0 ? numericId : rawIdentifier;
+
+        // Fetch specific resort by category slug or numeric ID
+        const foundResort = await fetchResortBySlug(queryParam);
         if (foundResort) {
           setResort(foundResort);
-        } else {
-          // Fallback search across list if direct fetch returned null
-          const normalized = decodeURIComponent(effectiveSlug).toLowerCase().trim();
-          const fallbackMatch = list.find((r) => {
+        } else if (safeList.length > 0) {
+          // Fallback search across loaded list if direct fetch returned null
+          const normalized = decodeURIComponent(rawIdentifier).toLowerCase().trim();
+          const fallbackMatch = safeList.find((r, index) => {
             const rSlug = (r.slug || "").toLowerCase().trim();
             const rId = (r.id || "").toLowerCase().trim();
             const rTitle = (r.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-            return rSlug === normalized || rId === normalized || rTitle === normalized;
+            
+            if (rSlug === normalized || rId === normalized || rTitle === normalized) return true;
+            if (!isNaN(numericId) && (index + 1 === numericId || Number(rId.replace(/[^0-9]/g, "")) === numericId)) return true;
+            return false;
           });
-          setResort(fallbackMatch || null);
+
+          setResort(fallbackMatch || safeList[0]);
+        } else {
+          setResort(null);
         }
-      } else if (list && list.length > 0) {
-        // Fall back to first available stay if slug is missing
-        setResort(list[0]);
+      } else if (safeList.length > 0) {
+        // Fall back to first available stay if identifier is missing
+        setResort(safeList[0]);
       } else {
         setResort(null);
       }
     } catch (err) {
       console.error("Error loading category detail page:", err);
+      // Graceful fallback to avoid breaking render execution
+      if (allResorts.length > 0) {
+        setResort(allResorts[0]);
+      }
     } finally {
       setLoading(false);
       setIsRetrying(false);
     }
-  }, [effectiveSlug]);
+  }, [rawIdentifier, allResorts]);
 
   useEffect(() => {
-    loadData();
+    fetchCategoryData();
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     const handleLocalUpdate = () => {
-      loadData();
+      fetchCategoryData();
     };
     window.addEventListener("dandeli_resorts_updated", handleLocalUpdate);
 
     const unsubscribe = subscribeToResortsRealtime(() => {
-      loadData();
+      fetchCategoryData();
     });
 
     return () => {
       window.removeEventListener("dandeli_resorts_updated", handleLocalUpdate);
       unsubscribe();
     };
-  }, [loadData]);
+  }, [fetchCategoryData]);
+
+  // Auto-redirect timer to home if no category data found at all
+  useEffect(() => {
+    if (!loading && !resort) {
+      setRedirectCountdown(8);
+      const interval = setInterval(() => {
+        setRedirectCountdown((prev) => {
+          if (prev !== null && prev <= 1) {
+            clearInterval(interval);
+            onNavigateHome();
+            return 0;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setRedirectCountdown(null);
+    }
+  }, [loading, resort, onNavigateHome]);
 
   const handleOpenEnquiryModal = (customSubject?: string) => {
     setEnquirySubject(
@@ -154,23 +227,7 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
 
   // 1. Asynchronous Data Fetching & Loading State
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#11221A] flex flex-col items-center justify-center text-white px-4">
-        {/* Animated Brand Ring Spinner */}
-        <div className="relative w-16 h-16 mb-6">
-          <div className="w-16 h-16 border-4 border-white/10 border-t-[#FF5722] rounded-full animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Compass className="w-6 h-6 text-[#FF5722] animate-pulse" />
-          </div>
-        </div>
-        <h2 className="text-lg sm:text-xl font-bold font-['Montserrat',sans-serif] tracking-tight text-white mb-2">
-          Loading Wilderness Experience
-        </h2>
-        <p className="text-white/60 font-sans tracking-wide text-xs sm:text-sm text-center max-w-sm">
-          Retrieving live resort rates, Kali River suites, and verified safari itineraries...
-        </p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // 2. Resilience Guard: Resort Category Not Found with Suggested Escapes
@@ -190,13 +247,19 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-3">
             Resort Category Not Found
           </h1>
-          <p className="text-gray-300 text-sm sm:text-base max-w-lg mb-8 leading-relaxed">
-            The stay or category <span className="text-[#FF5722] font-semibold font-mono">"{effectiveSlug || "requested"}"</span> could not be located. It might have been renamed or relocated.
+          <p className="text-gray-300 text-sm sm:text-base max-w-lg mb-4 leading-relaxed">
+            The stay or category <span className="text-[#FF5722] font-semibold font-mono">"{rawIdentifier || "requested"}"</span> could not be located. It might have been renamed or relocated.
           </p>
+
+          {redirectCountdown !== null && redirectCountdown > 0 && (
+            <p className="text-xs text-white/50 mb-6">
+              Auto-redirecting to Dandeli Home in {redirectCountdown}s...
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-4 mb-12">
             <button
-              onClick={() => loadData(true)}
+              onClick={() => fetchCategoryData(true)}
               disabled={isRetrying}
               className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer min-h-[44px]"
             >

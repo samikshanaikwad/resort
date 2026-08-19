@@ -1,4 +1,4 @@
-import { CategoryDetailPage, CategoryPage, useCategoryParams } from "./CategoryDetailPage";
+import { CategoryDetailPage, CategoryPage, useCategoryParams, useParams, LoadingSpinner } from "./CategoryDetailPage";
 
-export { CategoryDetailPage, CategoryPage, useCategoryParams };
+export { CategoryDetailPage, CategoryPage, useCategoryParams, useParams, LoadingSpinner };
 export default CategoryPage;

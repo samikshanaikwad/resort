@@ -117,10 +117,11 @@ export default function App() {
     return <AdminDashboard onExit={handleExitAdmin} />;
   }
 
-  // Route 2: Standalone Resort Category Dynamic Page (/category/:categorySlug or #category/:categorySlug)
+  // Route 2: Standalone Resort Category Dynamic Page (/category/:id, /category/:categorySlug, #category/:id, /#category/:id)
   if (currentRoute === "category") {
     return (
       <CategoryDetailPage
+        id={activeCategorySlug || undefined}
         categorySlug={activeCategorySlug || undefined}
         slug={activeCategorySlug || undefined}
         onNavigateHome={navigateToHome}
