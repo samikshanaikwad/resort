@@ -2,32 +2,28 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Resort, ResortFormData } from "../types/resort";
 import { compressImageToWebP } from "./imageCompressor";
 import { PLACEHOLDERS } from "../config/placeholders";
+import { 
+  supabaseUrl, 
+  supabaseAnonKey, 
+  isSupabaseConfigured,
+  SUPABASE_CONFIG 
+} from "../config/supabase";
 
-// Retrieve environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+export { supabaseUrl, supabaseAnonKey, isSupabaseConfigured, SUPABASE_CONFIG };
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl.startsWith("http") &&
-  !supabaseUrl.includes("your-project")
-);
-
-// Lazy initialized Supabase client
-let supabaseInstance: SupabaseClient | null = null;
-
-export function getSupabase(): SupabaseClient | null {
-  if (!isSupabaseConfigured) return null;
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+// 3. Export Initialized Supabase Client Singleton
+export const supabase: SupabaseClient | null = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
       },
-    });
-  }
-  return supabaseInstance;
+    })
+  : null;
+
+// Helper to get supabase instance
+export function getSupabase(): SupabaseClient | null {
+  return supabase;
 }
 
 // Initial Seed Data with full Standalone Category Page details (SS1 - SS8)
