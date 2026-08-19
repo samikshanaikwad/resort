@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Homepage Primary Route -->
+  <url>
+    <loc>https://dandelistaybooking.com/</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://res.cloudinary.com/ykltx8zw/image/upload/v1786201763/A-Complete-Guide-to-White-Water-Rafting-In-Dandeli_ech9ip.webp</image:loc>
+      <image:title>Dandeli Riverfront Resorts, Safari &amp; Rafting</image:title>
+      <image:caption>Best verified jungle stays and adventure booking in Dandeli</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Stays & Resorts Section -->
+  <url>
+    <loc>https://dandelistaybooking.com/#stays</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Things To Do & River Adventures -->
+  <url>
+    <loc>https://dandelistaybooking.com/#activities</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Places To Visit & Sightseeing Spots -->
+  <url>
+    <loc>https://dandelistaybooking.com/#spots</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Why Book With Us Guarantee -->
+  <url>
+    <loc>https://dandelistaybooking.com/#why-us</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Standalone Category Pages -->
+  <url>
+    <loc>https://dandelistaybooking.com/#category/premium-riverside-retreat</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1582719508461-905c673771fd</image:loc>
+      <image:title>Premium Riverside Retreat Dandeli</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://dandelistaybooking.com/#category/forest-wilderness-lodge</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1540541338287-41700207dee6</image:loc>
+      <image:title>Forest Wilderness Lodge Dandeli</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://dandelistaybooking.com/#category/luxury-riverfront-treehouse</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1618773928121-c32242e63f39</image:loc>
+      <image:title>Luxury Riverfront Treehouse Dandeli</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://dandelistaybooking.com/#category/wild-adventure-camp</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1590490360182-c33d57733427</image:loc>
+      <image:title>Wild Adventure Camp Dandeli</image:title>
+    </image:image>
+  </url>
+
+</urlset>

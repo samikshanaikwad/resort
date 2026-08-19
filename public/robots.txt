@@ -1,0 +1,24 @@
+# Robots.txt for Dandeli Stay Booking
+# Website: https://dandelistaybooking.com
+
+User-agent: *
+Allow: /
+Allow: /#home
+Allow: /#stays
+Allow: /#activities
+Allow: /#spots
+Allow: /#why-us
+Allow: /#category/*
+Allow: /#stay/*
+
+# Disallow private and administrative portals
+Disallow: /#admin
+Disallow: /admin
+Disallow: /api/admin
+Disallow: /admin/*
+
+# Crawl delay
+Crawl-delay: 1
+
+# Sitemap Location
+Sitemap: https://dandelistaybooking.com/sitemap.xml

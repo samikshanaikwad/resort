@@ -1,0 +1,6 @@
+{
+  "name": "Dandeli Stay Booking",
+  "description": "Handpicked jungle resorts, homestays, AC glass cottages, riverside chalets, and family tents with all-inclusive meals and safari booking in Dandeli.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
