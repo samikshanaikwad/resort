@@ -12,7 +12,8 @@ import {
   Coffee,
   Wifi
 } from "lucide-react";
-import { Resort } from "../../types/resort";
+import { Resort, getDisplayImage } from "../../types/resort";
+import { resolveImageUrl } from "../../lib/supabaseClient";
 
 interface CategoryExplorationProps {
   resort: Resort;
@@ -62,7 +63,9 @@ function renderAmenityIcon(iconName?: unknown) {
 
 export const CategoryExploration: React.FC<CategoryExplorationProps> = ({ resort }) => {
   const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Resort Experience").trim());
-  const exploreImg = String(resort?.explore_image_url || resort?.image_url || "").trim();
+  const coverImage = getDisplayImage(resort);
+  const rawExplore = resort?.explore_image_url || coverImage || resort?.image_url || resort?.cover_image || "";
+  const exploreImg = resolveImageUrl(rawExplore);
 
   // Fallback highlight amenities if not present in custom object
   const highlightAmenities = resort.highlight_amenities && resort.highlight_amenities.length > 0

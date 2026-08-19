@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MessageCircle } from "lucide-react";
 import { PLACEHOLDERS } from "../config/placeholders";
-import { Resort, getCategorySlug } from "../types/resort";
-import { fetchResorts, subscribeToResortsRealtime } from "../lib/supabaseClient";
+import { Resort, getCategorySlug, getDisplayImage } from "../types/resort";
+import { fetchResorts, subscribeToResortsRealtime, resolveImageUrl } from "../lib/supabaseClient";
 
 export interface StayItem {
   id: number | string;
@@ -121,6 +121,8 @@ export const ResortsShowcase: React.FC<ResortsShowcaseProps> = ({
                   {resorts.map((resort, idx) => {
                     const categorySlug = getCategorySlug(resort);
                     const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Resort").trim());
+                    const rawCover = getDisplayImage(resort) || resort?.image_url || resort?.cover_image || "";
+                    const cardImage = resolveImageUrl(rawCover);
 
                     return (
                       <div
@@ -131,7 +133,7 @@ export const ResortsShowcase: React.FC<ResortsShowcaseProps> = ({
                       >
                         {/* Full-Height Image Background */}
                         <img
-                          src={resort.image_url}
+                          src={cardImage}
                           alt={`${title} - Dandeli Riverfront Resort & Jungle Stay`}
                           loading="lazy"
                           decoding="async"

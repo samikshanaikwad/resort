@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Sparkles, Maximize2, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { Resort } from "../../types/resort";
+import { Resort, getDisplayImage } from "../../types/resort";
+import { resolveImageUrl, resolveImageGallery } from "../../lib/supabaseClient";
 
 interface CategoryGalleryProps {
   resort: Resort;
@@ -8,21 +9,16 @@ interface CategoryGalleryProps {
 
 export const CategoryGallery: React.FC<CategoryGalleryProps> = ({ resort }) => {
   const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Resort").trim());
-  const heroImg = String(resort?.image_url || "").trim();
-  const exploreImg = String(resort?.explore_image_url || resort?.image_url || "").trim();
+  const displayCover = getDisplayImage(resort);
+  const heroImg = resolveImageUrl(displayCover || resort?.image_url || resort?.cover_image || "");
+  const exploreImg = resolveImageUrl(resort?.explore_image_url || heroImg);
 
-  const defaultImages = [
-    heroImg,
-    exploreImg,
-    "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=1000&q=80"
-  ].filter(Boolean);
-
-  const galleryList = Array.isArray(resort?.gallery_images) && resort.gallery_images.length > 0
-    ? resort.gallery_images.map(img => String(img || "").trim()).filter(Boolean)
-    : defaultImages;
+  // Extract gallery images without injecting hardcoded mock Unsplash URLs over uploaded stays
+  const rawGallery = resort?.gallery_images || resort?.images;
+  const resolvedList = resolveImageGallery(rawGallery, heroImg);
+  const galleryList = resolvedList.length > 0 
+    ? resolvedList 
+    : [heroImg, exploreImg].filter(Boolean);
 
   const [activeLightboxIndex, setActiveLightboxIndex] = useState<number | null>(null);
 

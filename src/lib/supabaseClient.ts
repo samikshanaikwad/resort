@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Resort, ResortFormData } from "../types/resort";
+import { Resort, ResortFormData, getDisplayImage } from "../types/resort";
 import { compressImageToWebP } from "./imageCompressor";
 import { PLACEHOLDERS } from "../config/placeholders";
 import { 
@@ -24,6 +24,130 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 // Helper to get supabase instance
 export function getSupabase(): SupabaseClient | null {
   return supabase;
+}
+
+/**
+ * Resolves Supabase storage bucket relative keys or raw image paths to complete HTTPS public URLs.
+ * Never overwrites valid image URLs or base64 data URLs with Unsplash fallbacks.
+ */
+export function resolveImageUrl(imagePath?: string | null, bucketName = "resort-images"): string {
+  if (!imagePath || typeof imagePath !== "string") return "";
+  const trimmed = imagePath.trim();
+  if (!trimmed) return "";
+
+  // 1. Return immediately if already a complete valid URL or data/blob URI
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:image/") ||
+    trimmed.startsWith("blob:")
+  ) {
+    return trimmed;
+  }
+
+  // 2. Resolve relative storage bucket paths via Supabase SDK if configured
+  const client = getSupabase();
+  const cleanPath = trimmed.replace(/^\/+/, "");
+  const targetBucket = cleanPath.startsWith("resorts/") ? "resorts" : bucketName;
+  const objectKey = cleanPath.replace(/^resort-images\//, "").replace(/^resorts\//, "");
+
+  if (client) {
+    try {
+      const { data } = client.storage.from(targetBucket).getPublicUrl(objectKey || cleanPath);
+      if (data?.publicUrl) {
+        return data.publicUrl;
+      }
+    } catch (err) {
+      console.warn("Error getting public URL from Supabase storage:", err);
+    }
+  }
+
+  // 3. Fallback: Directly construct Supabase public storage endpoint
+  if (supabaseUrl) {
+    const baseUrl = supabaseUrl.replace(/\/+$/, "");
+    if (cleanPath.startsWith("storage/v1/object/public/")) {
+      return `${baseUrl}/${cleanPath}`;
+    }
+    return `${baseUrl}/storage/v1/object/public/${targetBucket}/${objectKey || cleanPath}`;
+  }
+
+  return trimmed;
+}
+
+/**
+ * Normalizes gallery image arrays, JSON string arrays, or comma-separated image paths.
+ */
+export function resolveImageGallery(gallery: any, defaultImage?: string): string[] {
+  let list: string[] = [];
+
+  if (Array.isArray(gallery)) {
+    list = gallery.map((item) => String(item || "").trim()).filter(Boolean);
+  } else if (typeof gallery === "string" && gallery.trim()) {
+    const trimmed = gallery.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          list = parsed.map((item) => String(item || "").trim()).filter(Boolean);
+        }
+      } catch (_) {
+        list = [trimmed];
+      }
+    } else if (trimmed.includes(",")) {
+      list = trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+    } else {
+      list = [trimmed];
+    }
+  }
+
+  const resolved = list.map((path) => resolveImageUrl(path)).filter(Boolean);
+  if (resolved.length > 0) {
+    return resolved;
+  }
+
+  if (defaultImage) {
+    const resolvedDefault = resolveImageUrl(defaultImage);
+    if (resolvedDefault) return [resolvedDefault];
+  }
+
+  return [];
+}
+
+/**
+ * Normalizes dynamic database records and prioritizes authentic uploaded image URLs
+ */
+export function normalizeResortRecord(record: any): Resort {
+  if (!record) return record;
+
+  const displayImage = getDisplayImage(record);
+  const rawCover = displayImage || record.image_url || record.cover_image || record.image || "";
+  const resolvedCover = resolveImageUrl(rawCover);
+  const resolvedExplore = resolveImageUrl(record.explore_image_url || rawCover) || resolvedCover;
+  const resolvedGallery = resolveImageGallery(record.gallery_images || record.images, resolvedCover);
+
+  return {
+    ...record,
+    id: String(record.id || `resort-${Date.now()}`),
+    title: record.title || record.name || "Dandeli Resort",
+    name: record.name || record.title || "Dandeli Resort",
+    slug: record.slug || (record.title || record.name || "resort").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    category: record.category || "Riverside Resort",
+    price_per_night: record.price_per_night || "₹2,000 / person",
+    package_badge: record.package_badge || `FROM 1 Night Package ${record.price_per_night || "₹2,000/-"}`,
+    short_description: record.short_description || "",
+    full_description: record.full_description || record.short_description || "",
+    image_url: resolvedCover || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1600&q=85",
+    explore_image_url: resolvedExplore || resolvedCover,
+    gallery_images: resolvedGallery.length > 0 ? resolvedGallery : (resolvedCover ? [resolvedCover] : []),
+    amenities: Array.isArray(record.amenities)
+      ? record.amenities
+      : (typeof record.amenities === "string" ? record.amenities.split(",").map((s: string) => s.trim()).filter(Boolean) : []),
+    highlight_amenities: Array.isArray(record.highlight_amenities) ? record.highlight_amenities : [],
+    packages: Array.isArray(record.packages) ? record.packages : [],
+    whats_included: Array.isArray(record.whats_included) ? record.whats_included : [],
+    is_featured: Boolean(record.is_featured ?? true),
+    is_active: Boolean(record.is_active ?? true),
+  };
 }
 
 // Initial Seed Data with full Standalone Category Page details (SS1 - SS8)
@@ -431,24 +555,26 @@ export async function fetchResorts(): Promise<Resort[]> {
 
       if (error) {
         console.warn("Supabase fetch error, falling back to local cache:", error.message);
-        return getLocalResorts();
-      }
-
-      if (data && data.length > 0) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-        return data as Resort[];
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        console.log("Fetched Resorts:", data);
+        const normalized = data.map(normalizeResortRecord);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(normalized));
+        return normalized;
       }
     } catch (err) {
       console.warn("Supabase connection exception:", err);
     }
   }
 
-  return getLocalResorts();
+  const local = getLocalResorts();
+  console.log("Fetched Resorts (Fallback Cache):", local);
+  return local.map(normalizeResortRecord);
 }
 
 export async function fetchResortBySlug(slugOrId: string | number): Promise<Resort | null> {
   if (slugOrId === undefined || slugOrId === null || slugOrId === "") {
-    return INITIAL_RESORTS_SEED[0] || null;
+    const list = await fetchResorts();
+    return list[0] || null;
   }
 
   // 1. DYNAMIC ROUTE MATCHING & SLUG / NUMERICAL ID NORMALIZATION
@@ -462,7 +588,7 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
   const numericId = Number(decodedParam);
   const isNumeric = !isNaN(numericId) && numericId > 0;
 
-  // 2. Direct Supabase Query with multi-field OR conditions (slug, string id, numeric id, prefixed id)
+  // 2. Direct Supabase Query: Prioritize dynamic database records
   const supabase = getSupabase();
   if (supabase) {
     try {
@@ -479,7 +605,8 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
         .maybeSingle();
 
       if (!error && data) {
-        return data as Resort;
+        console.log("Fetched Resort:", data);
+        return normalizeResortRecord(data);
       }
     } catch (err) {
       console.warn("Direct Supabase resort lookup failed, checking cached/full list:", err);
@@ -517,12 +644,12 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
       return false;
     });
 
-    if (found) return found;
+    if (found) return normalizeResortRecord(found);
 
     // B. If numerical ID was given (like /#category/13) but exceeds array length, safely map via modulo or return first resort
     if (isNumeric && resorts.length > 0) {
       const wrappedIndex = (numericId - 1) % resorts.length;
-      return resorts[wrappedIndex >= 0 ? wrappedIndex : 0];
+      return normalizeResortRecord(resorts[wrappedIndex >= 0 ? wrappedIndex : 0]);
     }
   }
 
@@ -551,15 +678,15 @@ export async function fetchResortBySlug(slugOrId: string | number): Promise<Reso
     return false;
   });
 
-  if (seedFound) return seedFound;
+  if (seedFound) return normalizeResortRecord(seedFound);
 
   // C. Guaranteed non-null fallback to prevent blank screens or runtime exceptions
   if (isNumeric && INITIAL_RESORTS_SEED.length > 0) {
     const wrappedIndex = (numericId - 1) % INITIAL_RESORTS_SEED.length;
-    return INITIAL_RESORTS_SEED[wrappedIndex >= 0 ? wrappedIndex : 0];
+    return normalizeResortRecord(INITIAL_RESORTS_SEED[wrappedIndex >= 0 ? wrappedIndex : 0]);
   }
 
-  return INITIAL_RESORTS_SEED[0] || null;
+  return normalizeResortRecord(INITIAL_RESORTS_SEED[0]) || null;
 }
 
 export async function createResort(formData: ResortFormData): Promise<Resort> {

@@ -1,6 +1,7 @@
 import React from "react";
 import { Sparkles } from "lucide-react";
-import { Resort } from "../../types/resort";
+import { Resort, getDisplayImage } from "../../types/resort";
+import { resolveImageUrl } from "../../lib/supabaseClient";
 
 interface CategoryHeroBannerProps {
   resort: Resort;
@@ -10,7 +11,8 @@ export const CategoryHeroBanner: React.FC<CategoryHeroBannerProps> = ({ resort }
   const title = typeof resort?.title === "string" ? resort.title.trim() : (typeof resort?.name === "string" ? resort.name.trim() : String(resort?.title || resort?.name || "Luxury Resort").trim());
   const price = typeof resort?.price_per_night === "string" ? resort.price_per_night.trim() : String(resort?.price_per_night || "₹1,300/-").trim();
   const badgeText = typeof resort?.package_badge === "string" && resort.package_badge.trim() ? resort.package_badge.trim() : `FROM 1 Night Package ${price}`;
-  const imageUrl = typeof resort?.image_url === "string" && resort.image_url.trim() ? resort.image_url.trim() : String(resort?.image_url || "");
+  const rawImage = getDisplayImage(resort) || resort?.image_url || resort?.cover_image || "";
+  const imageUrl = resolveImageUrl(rawImage);
 
   return (
     <section 

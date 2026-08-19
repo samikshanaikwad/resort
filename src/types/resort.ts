@@ -26,6 +26,9 @@ export interface Resort {
   short_description: string;
   full_description: string;
   image_url: string; // Hero cover photo
+  images?: string[] | string; // Dynamic Supabase image array or JSON string
+  cover_image?: string; // Alternative cover image field
+  image?: string; // Alternative image field
   explore_image_url?: string; // SS3 Exploration image
   check_in_time?: string; // e.g. "11:00 AM"
   check_out_time?: string; // e.g. "10:00 AM"
@@ -34,7 +37,7 @@ export interface Resort {
   highlight_amenities?: HighlightAmenity[]; // 2x2 grid on SS3
   packages?: PackageTier[]; // SS4 left column
   whats_included?: string[]; // SS4 right column list
-  gallery_images?: string[]; // SS5 Photo gallery
+  gallery_images?: string[] | string; // SS5 Photo gallery
   is_featured: boolean;
   is_active: boolean;
 }
@@ -54,6 +57,45 @@ export function getCategorySlug(category?: Partial<Resort> | null): string {
     "resort";
 
   return String(slug || "resort").trim();
+}
+
+/**
+ * Safely extracts the display image from any resort/stay object variant,
+ * supporting JSON arrays, string arrays, cover_image, or image_url.
+ */
+export function getDisplayImage(stay?: Partial<Resort> | null): string {
+  if (!stay) return "";
+
+  let raw = "";
+  if (Array.isArray(stay.images) && stay.images.length > 0) {
+    raw = String(stay.images[0] || "").trim();
+  } else if (typeof stay.images === "string" && stay.images.trim()) {
+    const trimmed = stay.images.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          raw = String(parsed[0] || "").trim();
+        }
+      } catch (_) {
+        raw = trimmed;
+      }
+    } else if (trimmed.includes(",")) {
+      raw = trimmed.split(",")[0].trim();
+    } else {
+      raw = trimmed;
+    }
+  }
+
+  if (!raw) {
+    raw = String(stay.image_url || stay.cover_image || stay.image || "").trim();
+  }
+
+  if (!raw && Array.isArray(stay.gallery_images) && stay.gallery_images.length > 0) {
+    raw = String(stay.gallery_images[0] || "").trim();
+  }
+
+  return raw;
 }
 
 export type ResortFormData = Omit<Resort, "id" | "created_at"> & {

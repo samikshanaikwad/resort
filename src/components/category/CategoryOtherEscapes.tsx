@@ -1,5 +1,6 @@
 import React from "react";
-import { Resort, getCategorySlug } from "../../types/resort";
+import { Resort, getCategorySlug, getDisplayImage } from "../../types/resort";
+import { resolveImageUrl } from "../../lib/supabaseClient";
 
 interface CategoryOtherEscapesProps {
   allResorts: Resort[];
@@ -39,6 +40,8 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
         {otherResorts.slice(0, 3).map((card) => {
           const cardSlug = getCategorySlug(card);
           const cardTitle = typeof card?.title === "string" ? card.title.trim() : (typeof card?.name === "string" ? card.name.trim() : String(card?.title || card?.name || "Resort").trim());
+          const displayCover = getDisplayImage(card) || card?.image_url || card?.cover_image || "";
+          const cardImg = resolveImageUrl(displayCover);
 
           return (
             <div
@@ -48,7 +51,7 @@ export const CategoryOtherEscapes: React.FC<CategoryOtherEscapesProps> = ({
             >
               {/* Background Image */}
               <img
-                src={card.image_url}
+                src={cardImg}
                 alt={`${cardTitle} - Dandeli Riverfront & Safari Stay`}
                 loading="lazy"
                 decoding="async"
