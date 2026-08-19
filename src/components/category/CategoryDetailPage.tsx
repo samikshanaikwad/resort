@@ -117,79 +117,116 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const [enquirySubject, setEnquirySubject] = useState("");
 
-  const fetchCategoryData = useCallback(async (isRetry = false) => {
-    if (isRetry) setIsRetrying(true);
-    else setLoading(true);
+  // 1. Primary Data Fetching Effect with isSubscribed cancellation guard and strict [categoryIdOrSlug] dependency
+  useEffect(() => {
+    let isSubscribed = true;
 
-    try {
-      // 1. Fetch all resorts first as reliable foundation
-      const list = await fetchResorts();
-      const safeList = Array.isArray(list) && list.length > 0 ? list : [];
-      setAllResorts(safeList);
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [list, found] = await Promise.all([
+          fetchResorts().catch(() => []),
+          categoryIdOrSlug ? fetchResortBySlug(categoryIdOrSlug).catch(() => null) : Promise.resolve(null),
+        ]);
 
-      if (categoryIdOrSlug) {
-        // Convert to number ONLY when comparing against integer database columns or numerical indexes
-        const numericId = Number(categoryIdOrSlug);
-        const isNumeric = !isNaN(numericId) && numericId > 0;
-        const queryParam = isNumeric ? numericId : categoryIdOrSlug;
+        if (!isSubscribed) return;
 
-        // Fetch specific resort by category slug or numeric ID
-        const foundResort = await fetchResortBySlug(queryParam);
-        if (foundResort) {
-          setResort(foundResort);
-        } else if (safeList.length > 0) {
-          // Fallback search across loaded list if direct fetch returned null
+        const safeList = Array.isArray(list) ? list : [];
+        setAllResorts(safeList);
+
+        if (found) {
+          setResort(found);
+        } else if (categoryIdOrSlug && safeList.length > 0) {
+          const numericId = Number(categoryIdOrSlug);
+          const isNumeric = !isNaN(numericId) && numericId > 0;
           const normalized = decodeURIComponent(categoryIdOrSlug).toLowerCase().trim();
           const fallbackMatch = safeList.find((r, index) => {
             const rSlug = String(r.slug || "").toLowerCase().trim();
             const rId = String(r.id || "").toLowerCase().trim();
             const rTitle = String(r.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-            
             if (rSlug === normalized || rId === normalized || rTitle === normalized) return true;
             if (isNumeric && (index + 1 === numericId || Number(rId.replace(/[^0-9]/g, "")) === numericId)) return true;
             return false;
           });
-
           setResort(fallbackMatch || safeList[0]);
+        } else if (safeList.length > 0) {
+          setResort(safeList[0]);
         } else {
           setResort(null);
         }
-      } else if (safeList.length > 0) {
-        // Fall back to first available stay if identifier is missing
-        setResort(safeList[0]);
-      } else {
-        setResort(null);
+      } catch (err) {
+        console.error("Error loading category detail page:", err);
+      } finally {
+        if (isSubscribed) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error("Error loading category detail page:", err);
-      // Graceful fallback to avoid breaking render execution
-      if (allResorts.length > 0) {
-        setResort(allResorts[0]);
-      }
-    } finally {
-      setLoading(false);
-      setIsRetrying(false);
     }
-  }, [categoryIdOrSlug, allResorts]);
 
-  useEffect(() => {
-    fetchCategoryData();
+    loadData();
     window.scrollTo({ top: 0, behavior: "smooth" });
 
+    return () => {
+      isSubscribed = false;
+    };
+  }, [categoryIdOrSlug]);
+
+  // 2. Realtime Subscription Effect with clean teardown
+  useEffect(() => {
+    let isMounted = true;
+
+    const refreshDataSilently = async () => {
+      if (!isMounted) return;
+      try {
+        const list = await fetchResorts();
+        if (!isMounted) return;
+        setAllResorts(list || []);
+
+        if (categoryIdOrSlug) {
+          const updated = await fetchResortBySlug(categoryIdOrSlug);
+          if (isMounted && updated) {
+            setResort(updated);
+          }
+        }
+      } catch (e) {
+        console.warn("Background refresh error:", e);
+      }
+    };
+
     const handleLocalUpdate = () => {
-      fetchCategoryData();
+      refreshDataSilently();
     };
     window.addEventListener("dandeli_resorts_updated", handleLocalUpdate);
 
+    // Initialize Supabase realtime channel with strict unsubscribe cleanup
     const unsubscribe = subscribeToResortsRealtime(() => {
-      fetchCategoryData();
+      refreshDataSilently();
     });
 
     return () => {
+      isMounted = false;
       window.removeEventListener("dandeli_resorts_updated", handleLocalUpdate);
       unsubscribe();
     };
-  }, [fetchCategoryData]);
+  }, [categoryIdOrSlug]);
+
+  const handleManualRetry = async () => {
+    setIsRetrying(true);
+    try {
+      const list = await fetchResorts();
+      setAllResorts(list || []);
+      if (categoryIdOrSlug) {
+        const found = await fetchResortBySlug(categoryIdOrSlug);
+        setResort(found || list[0] || null);
+      } else {
+        setResort(list[0] || null);
+      }
+    } catch (e) {
+      console.error("Manual retry error:", e);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   // Auto-redirect timer to home if no category data found at all
   useEffect(() => {
@@ -260,7 +297,7 @@ export const CategoryDetailPage: React.FC<CategoryDetailPageProps> = ({
 
           <div className="flex flex-wrap items-center justify-center gap-4 mb-12">
             <button
-              onClick={() => fetchCategoryData(true)}
+              onClick={handleManualRetry}
               disabled={isRetrying}
               className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer min-h-[44px]"
             >
