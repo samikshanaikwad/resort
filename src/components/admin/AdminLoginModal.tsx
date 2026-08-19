@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Mail, Key, X, ArrowRight, ShieldCheck, Database, CheckCircle2 } from "lucide-react";
-import { getSupabase, isSupabaseConfigured } from "../../lib/supabaseClient";
+import { Lock, Key, X, ArrowRight } from "lucide-react";
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -9,55 +8,27 @@ interface AdminLoginModalProps {
 }
 
 export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
-    const supabase = getSupabase();
+    const enteredPassword = typeof password === "string" ? password.trim() : String(password || "").trim();
 
-    if (supabase && isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        });
-
-        if (error) {
-          setErrorMsg(error.message);
-          setIsLoading(false);
-          return;
-        }
-
-        if (data.session) {
-          onSuccess();
-          return;
-        }
-      } catch (err: any) {
-        setErrorMsg(err.message || "Failed to authenticate with Supabase");
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // Direct master validation if Supabase auth credentials are in sandbox/demo mode
-    if ((email && password) || (!email && !password)) {
+    if (enteredPassword === "bhagwan") {
+      setIsLoading(false);
+      setPassword("");
       onSuccess();
     } else {
-      setErrorMsg("Please enter valid administrator credentials.");
+      setIsLoading(false);
+      setErrorMsg("Invalid Admin Password");
     }
-    setIsLoading(false);
-  };
-
-  const handleQuickDemoAccess = () => {
-    onSuccess();
   };
 
   return (
@@ -68,8 +39,13 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
       >
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={() => {
+            setPassword("");
+            setErrorMsg(null);
+            onClose();
+          }}
           className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-[#FF5500] text-white flex items-center justify-center transition-colors cursor-pointer"
+          aria-label="Close modal"
         >
           <X className="w-4 h-4" />
         </button>
@@ -83,15 +59,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
             Admin Portal Login
           </h3>
           <p className="text-xs text-white/70">
-            Sign in to manage Dandeli resorts, categories, pricing, and live website stays.
+            Enter administrator master password to access dashboard controls.
           </p>
-
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-white/5 border border-white/10 text-white/80 mt-1">
-            <Database className="w-3 h-3 text-[#FF5500]" />
-            <span>
-              {isSupabaseConfigured ? "Supabase Cloud Database Connected" : "Local Fast-Sync Database Active"}
-            </span>
-          </div>
         </div>
 
         {/* Login Form */}
@@ -104,32 +73,20 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
 
           <div>
             <label className="block text-xs font-semibold text-white/80 mb-1.5">
-              Admin Email
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="email"
-                placeholder="admin@dandelistay.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black/40 border border-white/15 focus:border-[#FF5500] focus:ring-1 focus:ring-[#FF5500] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-white/30 outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-white/80 mb-1.5">
-              Password
+              Admin Password
             </label>
             <div className="relative">
               <Key className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder="••••••••••••"
+                placeholder="Enter password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 className="w-full bg-black/40 border border-white/15 focus:border-[#FF5500] focus:ring-1 focus:ring-[#FF5500] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-white/30 outline-none transition-colors"
+                autoFocus
               />
             </div>
           </div>
@@ -149,18 +106,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
             )}
           </button>
         </form>
-
-        {/* Quick Access Helper */}
-        <div className="mt-5 pt-4 border-t border-white/10 text-center">
-          <button
-            onClick={handleQuickDemoAccess}
-            type="button"
-            className="text-xs text-white/60 hover:text-white underline underline-offset-4 cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Click for One-Click Instant Master Access</span>
-          </button>
-        </div>
       </div>
     </div>
   );

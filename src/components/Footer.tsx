@@ -24,7 +24,6 @@ export const Footer: React.FC<FooterProps> = () => {
               <li><a href="#activities" className="hover:text-[#FF5722] transition-colors py-1 inline-block">• Things To Do</a></li>
               <li><a href="#spots" className="hover:text-[#FF5722] transition-colors py-1 inline-block">• Places To Visit</a></li>
               <li><a href="#why-us" className="hover:text-[#FF5722] transition-colors py-1 inline-block">• Why Book With Us</a></li>
-              <li><a href="#admin" className="hover:text-[#FF5722] transition-colors py-1 inline-block">• Admin Management Portal</a></li>
             </ul>
           </div>
 
